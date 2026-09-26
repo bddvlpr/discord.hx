@@ -6,10 +6,22 @@
       url = "github:hercules-ci/flake-parts";
       inputs.nixpkgs-lib.follows = "nixpkgs";
     };
+
+    crane.url = "github:ipetkov/crane";
+
+    advisory-db = {
+      url = "github:rustsec/advisory-db";
+      flake = false;
+    };
   };
 
   outputs =
-    { flake-parts, ... }@inputs:
+    {
+      flake-parts,
+      crane,
+      advisory-db,
+      ...
+    }@inputs:
     flake-parts.lib.mkFlake { inherit inputs; } {
       systems = [
         "aarch64-darwin"
@@ -17,8 +29,56 @@
         "x86_64-linux"
       ];
 
-      perSystem = { pkgs, ... }: {
-        devShells.default = pkgs.mkShell { };
-      };
+      perSystem =
+        { self', pkgs, ... }:
+        let
+          craneLib = crane.mkLib pkgs;
+          src = craneLib.cleanCargoSource ./.;
+
+          commonArgs = {
+            inherit src;
+            strictDeps = true;
+          };
+
+          cargoArtifacts = craneLib.buildDepsOnly commonArgs;
+
+          discord-hx = craneLib.buildPackage (commonArgs // { inherit cargoArtifacts; });
+        in
+        {
+          checks = {
+            inherit discord-hx;
+
+            discord-hx-clippy = craneLib.cargoClippy (
+              commonArgs
+              // {
+                inherit cargoArtifacts;
+                cargoClippyExtraArgs = "--all-targets -- --deny warning";
+              }
+            );
+
+            discord-hx-fmt = craneLib.cargoFmt { inherit src; };
+
+            discord-hx-toml-fmt = craneLib.taploFmt {
+              src = pkgs.lib.sources.sourceFilesBySuffices src [ ".toml" ];
+            };
+
+            discord-hx-audit = craneLib.cargoAudit {
+              inherit src advisory-db;
+            };
+
+            discord-hx-deny = craneLib.cargoDeny {
+              inherit src;
+            };
+          };
+
+          packages = {
+            inherit discord-hx;
+            default = discord-hx;
+          };
+
+          devShells.default = craneLib.devShell {
+            checks = self'.checks;
+          };
+        };
     };
 }
