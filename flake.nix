@@ -52,7 +52,7 @@
               commonArgs
               // {
                 inherit cargoArtifacts;
-                cargoClippyExtraArgs = "--all-targets -- --deny warning";
+                cargoClippyExtraArgs = "--all-targets -- --deny warnings";
               }
             );
 
