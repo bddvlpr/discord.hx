@@ -42,7 +42,16 @@
 
           cargoArtifacts = craneLib.buildDepsOnly commonArgs;
 
-          discord-hx = craneLib.buildPackage (commonArgs // { inherit cargoArtifacts; });
+          discord-hx = craneLib.buildPackage (
+            commonArgs
+            // {
+              inherit cargoArtifacts;
+              postInstall = ''
+                mkdir -p "$out/share/discord-hx"
+                cp ${./discord.scm} "$out/share/discord-hx/discord.scm"
+              '';
+            }
+          );
         in
         {
           checks = {

@@ -161,6 +161,8 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "discord-presence",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
